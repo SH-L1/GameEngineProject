@@ -161,8 +161,8 @@ Boot → Playing → (Paused) → GameOver → (Restart)
 
 | Phase | 목표 | 산출물 | 상태 |
 |------|------|--------|------|
-| **P1** | Player Hole MVP 골격 | `HoleBase`, `PlayerHole`, `Swallowable`, `GameSettings`, 기본 카메라 follow | 진행 중 |
-| **P2** | 흡수 판정 안정화 | 트리거 중복 방지, 콜라이더/렌더 bounds 기반 size·volume 계산, 비활성화/풀링 호환 | 예정 |
+| **P1** | Player Hole MVP 골격 | `HoleBase`, `PlayerHole`, `Swallowable`, `GameSettings`, 기본 카메라 follow | 완료 |
+| **P2** | 흡수 판정 안정화 | 트리거 중복 방지, 콜라이더/렌더 bounds 기반 size·volume 계산, 비활성화/풀링 호환 | 완료 |
 | **P3** | 성장 공식 튜닝 | `growthCoefficient`, `swallowMargin`, score 가산 검증, 작은/중간/큰 오브젝트 테스트 프리셋 | 예정 |
 | **P4** | 카메라 성장 연출 | 반경 기반 줌 보간, 흡수 순간 줌 펄스, Cinemachine 전환 지점 정의 | 예정 |
 | **P5** | 팀 통합 인터페이스 정리 | AI가 상속할 `HoleBase` API 확정, UI가 구독할 `RadiusChanged`/`ScoreChanged` 이벤트 검증 | 예정 |
@@ -170,9 +170,55 @@ Boot → Playing → (Paused) → GameOver → (Restart)
 
 P1 기준 배치 가이드:
 - Player 오브젝트: `Rigidbody` + `SphereCollider(isTrigger)` + `PlayerHole`
+- Player Hole 초기 반경은 `0.5`로 맞춘다. `PlayerHole.radius`와 `SphereCollider.radius`가 같은 값이어야 한다
 - Hole 시각 오브젝트: 검은 disk/quad를 `visualRoot`에 연결
 - 먹을 오브젝트: `Collider` + `Renderer` + `Swallowable`
 - Main Camera: `HoleCameraFollow`를 붙이고 `target`에 Player Hole 연결
+
+P1 컴파일 확인:
+- `dotnet restore "My project/Assembly-CSharp.csproj"` 완료
+- `dotnet build "My project/Assembly-CSharp.csproj" --no-restore` 완료
+- 결과: 경고 0개, 오류 0개
+
+P1 Unity 에디터 작업 체크리스트:
+- `Assets/Create/Void Eater/Game Settings`로 `GameSettings` 에셋 생성
+- Player Hole 오브젝트 생성 후 `Rigidbody`, `SphereCollider`, `PlayerHole` 부착
+- `SphereCollider`는 Trigger로 사용하며, `PlayerHole`의 `settings`에 `GameSettings` 에셋 연결
+- Hole 시각용 disk/quad 자식 오브젝트를 만들고 `visualRoot`에 연결
+- 먹을 샘플 오브젝트에 `Collider`, `Renderer`, `Swallowable` 부착
+- Main Camera에 `HoleCameraFollow` 부착 후 `target`에 Player Hole 연결
+- Main Camera를 Orthographic으로 설정하면 반경 기반 줌이 즉시 동작함
+
+P2 구현 내용:
+- `HoleBase.CanSwallow`에 크기 기반 흡수 가능 여부와 선택형 full containment 검사 추가
+- Scale 값 단순 비교를 제거하고, `SphereCollider`의 월드 반경과 오브젝트가 실제로 hole 안쪽으로 들어온 정도를 기준으로 흡수/통과 여부를 판단
+- 최종 통과 가능 여부는 오브젝트 XZ footprint의 대각 반경(`RequiredPassThroughRadius`)이 hole 월드 반경 안에 들어갈 수 있는지로 제한
+- `GameSettings`에 `requireFullContainment`, `swallowTolerance` 튜닝값 추가
+- `Swallowable`이 코루틴 위치 보간 대신 Rigidbody 힘/토크로 hole 가장자리에서 중심을 잃고 굴러 떨어지는 Hole.io식 흡수 방식으로 변경
+- 작은 오브젝트는 hole 안쪽으로 충분히 들어오면 collider를 trigger로 전환해 ground를 통과하고, 큰 오브젝트는 일부만 기울거나 밀리되 최종 흡수되지 않음
+- `Swallowable`의 collider 캐싱, size/volume 재계산, 재활성화 reset 흐름 정리
+- 흡수 중복 방지 및 흡수 도중 hole/object가 비활성화되는 경우 복구 처리
+
+P2 컴파일 확인:
+- `dotnet restore "My project/Assembly-CSharp.csproj"` 완료
+- `dotnet build "My project/Assembly-CSharp.csproj" --no-restore` 완료
+- 결과: 경고 0개, 오류 0개
+
+P2 Unity 에디터 작업 체크리스트:
+- 상단 메뉴 `Void Eater > Setup Phase 2 Test Scene` 실행
+- 생성된 `Player Hole`이 `Player Hole > visualRoot > HoleVisual` 계층인지 확인
+- Main Camera가 Orthographic이고 `HoleCameraFollow.target`이 `Player Hole`인지 확인
+- Play 후 `WASD` 또는 방향키로 Player Hole이 움직이는지 확인
+- 기존 `GameSettings` 에셋을 열고 새 필드가 보이는지 확인
+- `Require Full Containment`는 우선 끈다. 켜면 오브젝트가 hole 안쪽에 충분히 들어와야 흡수된다
+- `Swallow Tolerance`는 `0.1`부터 시작하고, 흡수가 너무 빡빡하면 `0.2~0.3`으로 조정
+- 작은 Cube, 중간 Cube, Player보다 큰 Cube를 각각 배치해 크기 기반 흡수 가능/불가능 경계를 확인
+- 작은 오브젝트는 hole 가장자리에서 중심을 잃고 굴러 떨어진 뒤 비활성화되는지 확인
+- 큰 오브젝트는 가장자리에서 일부 기울거나 밀리지만 ground를 완전히 통과하거나 비활성화되지 않는지 확인
+- Hole보다 XZ footprint 대각 반경이 큰 오브젝트는 물리 영향만 받고 최종 흡수되지 않는지 확인
+- Hole과 Cube의 X/Z scale이 같을 때 Cube가 가장자리에서 물리 힘을 받고, 충분히 안쪽으로 들어오면 통과하는지 확인
+- 흡수된 오브젝트가 Hierarchy에서 비활성화되는지 확인
+- 같은 오브젝트가 한 번에 점수를 여러 번 주지 않는지 Console/Inspector로 확인
 
 ---
 

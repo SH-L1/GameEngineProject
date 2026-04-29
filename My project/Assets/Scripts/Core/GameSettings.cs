@@ -18,5 +18,16 @@ namespace VoidEater.Core
         [Tooltip("Extra radius required before a hole can swallow an object.")]
         [Min(0f)]
         public float swallowMargin = 0.05f;
+
+        [Header("Swallow Check")]
+        public bool requireFullContainment = false;
+
+        [Tooltip("Small forgiveness value for objects sitting exactly on the hole edge.")]
+        [Min(0f)]
+        public float swallowTolerance = 0.1f;
+
+        [Tooltip("Extra radius required before an object's footprint can fall fully through the hole.")]
+        [Min(0f)]
+        public float passThroughClearance = 0.05f;
     }
 }

@@ -1,4 +1,7 @@
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 using VoidEater.Hole;
 
 namespace VoidEater.Player
@@ -36,6 +39,35 @@ namespace VoidEater.Player
             float x = 0f;
             float y = 0f;
 
+#if ENABLE_INPUT_SYSTEM
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard != null)
+            {
+                if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed)
+                {
+                    x -= 1f;
+                }
+
+                if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed)
+                {
+                    x += 1f;
+                }
+
+                if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed)
+                {
+                    y -= 1f;
+                }
+
+                if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed)
+                {
+                    y += 1f;
+                }
+
+                return new Vector2(x, y);
+            }
+#endif
+
+#if ENABLE_LEGACY_INPUT_MANAGER
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))
             {
                 x -= 1f;
@@ -55,6 +87,7 @@ namespace VoidEater.Player
             {
                 y += 1f;
             }
+#endif
 
             return new Vector2(x, y);
         }
