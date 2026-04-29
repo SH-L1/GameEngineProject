@@ -155,6 +155,25 @@ Boot → Playing → (Paused) → GameOver → (Restart)
 
 > 각 마일스톤 종료 시 코드 리뷰 + 통합 빌드 + 합동 플레이테스트 1회 진행.
 
+### 5.1 임성훈 담당 개발 Phase
+
+임성훈 담당 범위는 코어 게임플레이에 집중한다. 다른 팀원의 AI, UI, 게임 흐름 작업이 붙기 쉽도록 입력·점수·상태 관리와 강하게 결합하지 않고, `HoleBase` 중심의 재사용 가능한 흡수/성장 규칙을 먼저 완성한다.
+
+| Phase | 목표 | 산출물 | 상태 |
+|------|------|--------|------|
+| **P1** | Player Hole MVP 골격 | `HoleBase`, `PlayerHole`, `Swallowable`, `GameSettings`, 기본 카메라 follow | 진행 중 |
+| **P2** | 흡수 판정 안정화 | 트리거 중복 방지, 콜라이더/렌더 bounds 기반 size·volume 계산, 비활성화/풀링 호환 | 예정 |
+| **P3** | 성장 공식 튜닝 | `growthCoefficient`, `swallowMargin`, score 가산 검증, 작은/중간/큰 오브젝트 테스트 프리셋 | 예정 |
+| **P4** | 카메라 성장 연출 | 반경 기반 줌 보간, 흡수 순간 줌 펄스, Cinemachine 전환 지점 정의 | 예정 |
+| **P5** | 팀 통합 인터페이스 정리 | AI가 상속할 `HoleBase` API 확정, UI가 구독할 `RadiusChanged`/`ScoreChanged` 이벤트 검증 | 예정 |
+| **P6** | Unity 씬 검증 | Player prefab 구성, Swallowable 샘플 배치, Play Mode 수동 테스트 체크리스트 완료 | 예정 |
+
+P1 기준 배치 가이드:
+- Player 오브젝트: `Rigidbody` + `SphereCollider(isTrigger)` + `PlayerHole`
+- Hole 시각 오브젝트: 검은 disk/quad를 `visualRoot`에 연결
+- 먹을 오브젝트: `Collider` + `Renderer` + `Swallowable`
+- Main Camera: `HoleCameraFollow`를 붙이고 `target`에 Player Hole 연결
+
 ---
 
 ## 6. 위험 요소 & 대응 전략
