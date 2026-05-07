@@ -1191,7 +1191,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0.02, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 4, y: 1, z: 4}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 46752931}
@@ -2460,6 +2460,7 @@ GameObject:
   - component: {fileID: 587723886}
   - component: {fileID: 587723885}
   - component: {fileID: 587723884}
+  - component: {fileID: 900000010}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -2485,6 +2486,26 @@ MonoBehaviour:
   targetCamera: {fileID: 587723886}
   baseOrthographicSize: 10
   sizePerRadius: 1.25
+  minOrthographicSize: 8
+  maxOrthographicSize: 28
+  swallowPulseSize: 1.1
+  swallowPulseDuration: 0.22
+--- !u!114 &900000010
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 587723883}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d74733d64217db4ba75eb86bd5f666d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VoidEater.Hole.HoleDebugHUD
+  target: {fileID: 1695208881}
+  fontSize: 82
+  topPositionRatio: 0.99
+  widthRatio: 0.9
 --- !u!81 &587723885
 AudioListener:
   m_ObjectHideFlags: 0
@@ -6950,7 +6971,7 @@ MonoBehaviour:
   radius: 2
   visualRoot: {fileID: 272159121}
   moveSpeed: 6
-  mapHalfExtents: {x: 45, y: 45}
+  mapHalfExtents: {x: 43, y: 36.5}
 --- !u!135 &1695208882
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -7013,8 +7034,60 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 272159121}
+  - {fileID: 900000021}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &900000020
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 900000021}
+  - component: {fileID: 900000022}
+  m_Layer: 0
+  m_Name: Rings
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &900000021
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900000020}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1695208884}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &900000022
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900000020}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce1690fa61255b54f836be241c6ed48e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VoidEater.Hole.HoleProgressRing
+  target: {fileID: 1695208881}
+  progressRing: {fileID: 0}
+  progressMaterial: {fileID: 2100000, guid: 6b3b621aee78d274d91f631557d2ec67, type: 2}
+  segments: 128
+  progressRadiusOffset: 0.08
+  progressWidth: 0.09
+  ringHeight: 2.5
 --- !u!1 &1711258156 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5127665253469060, guid: 04dadcfb8f3a78347aff46020e1aae74, type: 3}

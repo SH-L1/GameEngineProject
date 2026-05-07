@@ -12,6 +12,7 @@ namespace VoidEater.Objects
         [SerializeField, Min(0f)] private int score = 10;
 
         [Header("Hole Physics")]
+        [SerializeField] private bool activatePhysicsOnStart;
         [SerializeField, Min(0f)] private float inwardAcceleration = 18f;
         [SerializeField, Min(0f)] private float edgeDownAcceleration = 34f;
         [SerializeField, Min(0f)] private float tumbleTorque = 18f;
@@ -198,15 +199,18 @@ namespace VoidEater.Objects
 
             body.isKinematic = false;
             body.useGravity = true;
+            body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             body.WakeUp();
         }
 
         private void ConfigureBody()
         {
-            body.isKinematic = false;
-            body.useGravity = true;
+            body.isKinematic = !activatePhysicsOnStart;
+            body.useGravity = activatePhysicsOnStart;
             body.interpolation = RigidbodyInterpolation.Interpolate;
-            body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            body.collisionDetectionMode = activatePhysicsOnStart
+                ? CollisionDetectionMode.ContinuousDynamic
+                : CollisionDetectionMode.ContinuousSpeculative;
         }
 
         private void SetPassThrough(bool enabled)

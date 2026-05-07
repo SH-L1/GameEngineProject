@@ -62,6 +62,8 @@ namespace VoidEater.Hole
                 trigger.isTrigger = true;
                 trigger.radius = radius;
             }
+
+            SyncVisualScale();
         }
 
         protected virtual void OnTriggerStay(Collider other)
@@ -215,13 +217,23 @@ namespace VoidEater.Hole
 
             if (visualRoot != null)
             {
-                visualRoot.localScale = new Vector3(radius * 2f, visualRoot.localScale.y, radius * 2f);
+                SyncVisualScale();
             }
 
             if (forceEvent || RadiusChanged != null)
             {
                 RadiusChanged?.Invoke(radius);
             }
+        }
+
+        private void SyncVisualScale()
+        {
+            if (visualRoot == null)
+            {
+                return;
+            }
+
+            visualRoot.localScale = new Vector3(radius * 2f, visualRoot.localScale.y, radius * 2f);
         }
     }
 }

@@ -14,7 +14,6 @@ namespace VoidEater.Editor
         private const string SettingsPath = "Assets/GameSettings.asset";
         private const string MaterialsFolder = "Assets/Materials";
         private const string HoleMaterialPath = MaterialsFolder + "/M_HoleVisual.mat";
-        private const string HoleBorderMaterialPath = MaterialsFolder + "/M_HoleBorder.mat";
         private const string HoleProgressMaterialPath = MaterialsFolder + "/M_HoleProgress.mat";
         private const string GroundMaterialPath = MaterialsFolder + "/M_TestGround.mat";
         private const string SwallowableMaterialPath = MaterialsFolder + "/M_TestSwallowable.mat";
@@ -27,13 +26,12 @@ namespace VoidEater.Editor
 
             GameSettings settings = EnsureGameSettings();
             Material holeMaterial = EnsureMaterial(HoleMaterialPath, new Color(0.005f, 0.005f, 0.008f));
-            Material borderMaterial = EnsureLineMaterial(HoleBorderMaterialPath, Color.white);
             Material progressMaterial = EnsureLineMaterial(HoleProgressMaterialPath, new Color(0.3f, 0.95f, 1f));
             Material groundMaterial = EnsureMaterial(GroundMaterialPath, new Color(0.2f, 0.24f, 0.22f));
             Material swallowableMaterial = EnsureMaterial(SwallowableMaterialPath, new Color(0.85f, 0.68f, 0.38f));
 
             GameObject ground = EnsureGround(groundMaterial);
-            GameObject player = EnsurePlayerHole(settings, holeMaterial, borderMaterial, progressMaterial);
+            GameObject player = EnsurePlayerHole(settings, holeMaterial, progressMaterial);
             EnsureCamera(player.GetComponent<PlayerHole>());
             EnsureSampleSwallowables(swallowableMaterial);
 
@@ -85,7 +83,6 @@ namespace VoidEater.Editor
         private static GameObject EnsurePlayerHole(
             GameSettings settings,
             Material holeMaterial,
-            Material borderMaterial,
             Material progressMaterial)
         {
             GameObject player = GameObject.Find("Player Hole");
@@ -142,7 +139,7 @@ namespace VoidEater.Editor
             serializedPlayer.FindProperty("radius").floatValue = InitialPlayerHoleRadius;
             serializedPlayer.ApplyModifiedProperties();
 
-            EnsureProgressRing(player.transform, playerHole, borderMaterial, progressMaterial);
+            EnsureProgressRing(player.transform, playerHole, progressMaterial);
 
             return player;
         }
@@ -150,7 +147,6 @@ namespace VoidEater.Editor
         private static void EnsureProgressRing(
             Transform player,
             PlayerHole playerHole,
-            Material borderMaterial,
             Material progressMaterial)
         {
             Transform rings = player.Find("Rings");
@@ -170,12 +166,9 @@ namespace VoidEater.Editor
 
             SerializedObject serializedRing = new SerializedObject(progressRing);
             serializedRing.FindProperty("target").objectReferenceValue = playerHole;
-            serializedRing.FindProperty("borderMaterial").objectReferenceValue = borderMaterial;
             serializedRing.FindProperty("progressMaterial").objectReferenceValue = progressMaterial;
             serializedRing.FindProperty("segments").intValue = 128;
-            serializedRing.FindProperty("borderRadiusOffset").floatValue = 0f;
             serializedRing.FindProperty("progressRadiusOffset").floatValue = 0.08f;
-            serializedRing.FindProperty("borderWidth").floatValue = 0.5f;
             serializedRing.FindProperty("progressWidth").floatValue = 0.09f;
             serializedRing.FindProperty("ringHeight").floatValue = 2.5f;
             serializedRing.ApplyModifiedProperties();
@@ -251,6 +244,7 @@ namespace VoidEater.Editor
             SerializedObject serializedSwallowable = new SerializedObject(swallowable);
             serializedSwallowable.FindProperty("size").floatValue = 0f;
             serializedSwallowable.FindProperty("score").intValue = score;
+            serializedSwallowable.FindProperty("activatePhysicsOnStart").boolValue = false;
             serializedSwallowable.FindProperty("inwardAcceleration").floatValue = 18f;
             serializedSwallowable.FindProperty("edgeDownAcceleration").floatValue = 34f;
             serializedSwallowable.FindProperty("tumbleTorque").floatValue = 18f;
@@ -261,11 +255,11 @@ namespace VoidEater.Editor
             serializedSwallowable.ApplyModifiedProperties();
 
             Rigidbody body = EnsureComponent<Rigidbody>(cube);
-            body.useGravity = true;
-            body.isKinematic = false;
+            body.useGravity = false;
+            body.isKinematic = true;
             body.mass = Mathf.Max(0.25f, scale.x * scale.y * scale.z);
             body.interpolation = RigidbodyInterpolation.Interpolate;
-            body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
         }
 
         private static T EnsureComponent<T>(GameObject gameObject) where T : Component

@@ -6,14 +6,10 @@ namespace VoidEater.Hole
     public sealed class HoleProgressRing : MonoBehaviour
     {
         [SerializeField] private HoleBase target;
-        [SerializeField] private LineRenderer borderRing;
         [SerializeField] private LineRenderer progressRing;
-        [SerializeField] private Material borderMaterial;
         [SerializeField] private Material progressMaterial;
         [SerializeField, Min(12)] private int segments = 96;
-        [SerializeField, Min(0f)] private float borderRadiusOffset;
         [SerializeField, Min(0f)] private float progressRadiusOffset = 0.08f;
-        [SerializeField, Min(0.001f)] private float borderWidth = 0.6f;
         [SerializeField, Min(0.001f)] private float progressWidth = 0.09f;
         [SerializeField] private float ringHeight = 1f;
 
@@ -87,7 +83,7 @@ namespace VoidEater.Hole
 
         private void EnsureLineRenderers()
         {
-            borderRing = EnsureLineRenderer(borderRing, "BorderRing", true);
+            RemoveLegacyBorderRing();
             progressRing = EnsureLineRenderer(progressRing, "GrowthGaugeRing", false);
         }
 
@@ -120,13 +116,12 @@ namespace VoidEater.Hole
 
         private void Redraw()
         {
-            if (borderRing == null || progressRing == null)
+            if (progressRing == null)
             {
                 return;
             }
 
             float baseRadius = target != null ? target.Radius : 0.5f;
-            DrawCircle(borderRing, baseRadius + borderRadiusOffset, 1f, borderWidth);
             DrawCircle(progressRing, baseRadius + progressRadiusOffset, progress01, progressWidth);
         }
 
@@ -137,7 +132,7 @@ namespace VoidEater.Hole
             renderer.positionCount = pointCount;
             renderer.startWidth = width;
             renderer.endWidth = width;
-            renderer.sharedMaterial = renderer == borderRing ? borderMaterial : progressMaterial;
+            renderer.sharedMaterial = progressMaterial;
 
             float angleRange = Mathf.PI * 2f * fill;
             for (int i = 0; i < pointCount; i++)
@@ -146,6 +141,24 @@ namespace VoidEater.Hole
                 float angle = renderer.loop ? Mathf.PI * 2f * i / segments : angleRange * t;
                 Vector3 position = new Vector3(Mathf.Cos(angle) * radius, ringHeight, Mathf.Sin(angle) * radius);
                 renderer.SetPosition(i, position);
+            }
+        }
+
+        private void RemoveLegacyBorderRing()
+        {
+            Transform legacyBorder = transform.Find("BorderRing");
+            if (legacyBorder == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(legacyBorder.gameObject);
+            }
+            else
+            {
+                DestroyImmediate(legacyBorder.gameObject);
             }
         }
     }
