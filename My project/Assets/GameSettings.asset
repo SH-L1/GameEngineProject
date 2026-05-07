@@ -12,9 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7c54fa6b8d05cdc4497ee536b1a23e5f, type: 3}
   m_Name: GameSettings
   m_EditorClassIdentifier: Assembly-CSharp::VoidEater.Core.GameSettings
-  growthCoefficient: 0.35
-  minimumObjectVolume: 0.01
-  minimumHoleArea: 0.25
+  baseGrowthRequired: 35
+  growthRequirementMultiplier: 1.22
+  objectVolumeProgressWeight: 8
+  objectScoreProgressWeight: 1
+  radiusGainPerLevel: 0.25
+  maximumRadius: 12
+  scoreMultiplier: 1
   swallowMargin: 0.05
   requireFullContainment: 0
   swallowTolerance: 0.1

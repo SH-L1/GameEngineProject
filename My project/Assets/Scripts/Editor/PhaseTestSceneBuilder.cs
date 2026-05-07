@@ -14,9 +14,12 @@ namespace VoidEater.Editor
         private const string SettingsPath = "Assets/GameSettings.asset";
         private const string MaterialsFolder = "Assets/Materials";
         private const string HoleMaterialPath = MaterialsFolder + "/M_HoleVisual.mat";
+        private const string HoleBorderMaterialPath = MaterialsFolder + "/M_HoleBorder.mat";
+        private const string HoleProgressMaterialPath = MaterialsFolder + "/M_HoleProgress.mat";
         private const string GroundMaterialPath = MaterialsFolder + "/M_TestGround.mat";
         private const string SwallowableMaterialPath = MaterialsFolder + "/M_TestSwallowable.mat";
 
+        [MenuItem("Void Eater/Setup Core Test Scene")]
         [MenuItem("Void Eater/Setup Phase 2 Test Scene")]
         public static void SetupPhase2TestScene()
         {
@@ -24,11 +27,13 @@ namespace VoidEater.Editor
 
             GameSettings settings = EnsureGameSettings();
             Material holeMaterial = EnsureMaterial(HoleMaterialPath, new Color(0.005f, 0.005f, 0.008f));
+            Material borderMaterial = EnsureLineMaterial(HoleBorderMaterialPath, Color.white);
+            Material progressMaterial = EnsureLineMaterial(HoleProgressMaterialPath, new Color(0.3f, 0.95f, 1f));
             Material groundMaterial = EnsureMaterial(GroundMaterialPath, new Color(0.2f, 0.24f, 0.22f));
             Material swallowableMaterial = EnsureMaterial(SwallowableMaterialPath, new Color(0.85f, 0.68f, 0.38f));
 
             GameObject ground = EnsureGround(groundMaterial);
-            GameObject player = EnsurePlayerHole(settings, holeMaterial);
+            GameObject player = EnsurePlayerHole(settings, holeMaterial, borderMaterial, progressMaterial);
             EnsureCamera(player.GetComponent<PlayerHole>());
             EnsureSampleSwallowables(swallowableMaterial);
 
@@ -50,6 +55,13 @@ namespace VoidEater.Editor
             settings.requireFullContainment = false;
             settings.swallowTolerance = 0.1f;
             settings.passThroughClearance = 0.05f;
+            settings.baseGrowthRequired = 35f;
+            settings.growthRequirementMultiplier = 1.22f;
+            settings.objectVolumeProgressWeight = 8f;
+            settings.objectScoreProgressWeight = 1f;
+            settings.radiusGainPerLevel = 0.25f;
+            settings.maximumRadius = 12f;
+            settings.scoreMultiplier = 1f;
             EditorUtility.SetDirty(settings);
             return settings;
         }
@@ -70,7 +82,11 @@ namespace VoidEater.Editor
             return ground;
         }
 
-        private static GameObject EnsurePlayerHole(GameSettings settings, Material holeMaterial)
+        private static GameObject EnsurePlayerHole(
+            GameSettings settings,
+            Material holeMaterial,
+            Material borderMaterial,
+            Material progressMaterial)
         {
             GameObject player = GameObject.Find("Player Hole");
             if (player == null)
@@ -126,7 +142,45 @@ namespace VoidEater.Editor
             serializedPlayer.FindProperty("radius").floatValue = InitialPlayerHoleRadius;
             serializedPlayer.ApplyModifiedProperties();
 
+            EnsureProgressRing(player.transform, playerHole, borderMaterial, progressMaterial);
+
             return player;
+        }
+
+        private static void EnsureProgressRing(
+            Transform player,
+            PlayerHole playerHole,
+            Material borderMaterial,
+            Material progressMaterial)
+        {
+            Transform rings = player.Find("Rings");
+            if (rings == null)
+            {
+                rings = new GameObject("Rings").transform;
+                Undo.RegisterCreatedObjectUndo(rings.gameObject, "Create Hole Rings");
+                rings.SetParent(player, false);
+            }
+
+            rings.localPosition = Vector3.zero;
+            rings.localRotation = Quaternion.identity;
+            rings.localScale = Vector3.one;
+
+            HoleProgressRing progressRing = EnsureComponent<HoleProgressRing>(rings.gameObject);
+            progressRing.SetTarget(playerHole);
+
+            SerializedObject serializedRing = new SerializedObject(progressRing);
+            serializedRing.FindProperty("target").objectReferenceValue = playerHole;
+            serializedRing.FindProperty("borderMaterial").objectReferenceValue = borderMaterial;
+            serializedRing.FindProperty("progressMaterial").objectReferenceValue = progressMaterial;
+            serializedRing.FindProperty("segments").intValue = 128;
+            serializedRing.FindProperty("borderRadiusOffset").floatValue = 0f;
+            serializedRing.FindProperty("progressRadiusOffset").floatValue = 0.08f;
+            serializedRing.FindProperty("borderWidth").floatValue = 0.5f;
+            serializedRing.FindProperty("progressWidth").floatValue = 0.09f;
+            serializedRing.FindProperty("ringHeight").floatValue = 2.5f;
+            serializedRing.ApplyModifiedProperties();
+            progressRing.SetTarget(playerHole);
+            EditorUtility.SetDirty(progressRing);
         }
 
         private static void EnsureCamera(PlayerHole target)
@@ -151,14 +205,31 @@ namespace VoidEater.Editor
             serializedFollow.FindProperty("target").objectReferenceValue = target;
             serializedFollow.FindProperty("targetCamera").objectReferenceValue = camera;
             serializedFollow.FindProperty("offset").vector3Value = new Vector3(0f, 18f, -14f);
+            serializedFollow.FindProperty("followSharpness").floatValue = 8f;
+            serializedFollow.FindProperty("baseOrthographicSize").floatValue = 10f;
+            serializedFollow.FindProperty("sizePerRadius").floatValue = 1.25f;
+            serializedFollow.FindProperty("minOrthographicSize").floatValue = 8f;
+            serializedFollow.FindProperty("maxOrthographicSize").floatValue = 28f;
+            serializedFollow.FindProperty("swallowPulseSize").floatValue = 1.1f;
+            serializedFollow.FindProperty("swallowPulseDuration").floatValue = 0.22f;
             serializedFollow.ApplyModifiedProperties();
+
+            HoleDebugHUD debugHud = EnsureComponent<HoleDebugHUD>(camera.gameObject);
+            SerializedObject serializedHud = new SerializedObject(debugHud);
+            serializedHud.FindProperty("target").objectReferenceValue = target;
+            serializedHud.FindProperty("fontSize").intValue = 82;
+            serializedHud.FindProperty("topPositionRatio").floatValue = 0.99f;
+            serializedHud.FindProperty("widthRatio").floatValue = 0.9f;
+            serializedHud.ApplyModifiedProperties();
         }
 
         private static void EnsureSampleSwallowables(Material material)
         {
-            CreateSampleCube("Sample Small Cube", new Vector3(3f, 0.25f, 0f), Vector3.one * 0.5f, 10, material);
-            CreateSampleCube("Sample Medium Cube", new Vector3(5f, 0.5f, 2f), Vector3.one, 25, material);
-            CreateSampleCube("Sample Large Cube", new Vector3(7f, 1f, -2f), Vector3.one * 2f, 75, material);
+            CreateSampleCube("Sample Tiny Cube", new Vector3(2.5f, 0.15f, -1.5f), Vector3.one * 0.3f, 5, material);
+            CreateSampleCube("Sample Small Cube", new Vector3(3.25f, 0.25f, 0f), Vector3.one * 0.5f, 10, material);
+            CreateSampleCube("Sample Medium Cube", new Vector3(5f, 0.5f, 1.75f), Vector3.one, 25, material);
+            CreateSampleCube("Sample Tall Block", new Vector3(6.5f, 1.5f, -1.75f), new Vector3(0.8f, 3f, 0.8f), 45, material);
+            CreateSampleCube("Sample Large Cube", new Vector3(8.25f, 1f, 0f), Vector3.one * 2f, 75, material);
         }
 
         private static void CreateSampleCube(string name, Vector3 position, Vector3 scale, int score, Material material)
@@ -227,6 +298,40 @@ namespace VoidEater.Editor
             }
 
             material.color = color;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        private static Material EnsureLineMaterial(string path, Color color)
+        {
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null)
+            {
+                shader = Shader.Find("Sprites/Default");
+            }
+
+            if (material == null)
+            {
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            else if (shader != null && material.shader != shader)
+            {
+                material.shader = shader;
+            }
+
+            material.color = color;
+            if (material.HasProperty("_BaseColor"))
+            {
+                material.SetColor("_BaseColor", color);
+            }
+
+            if (material.HasProperty("_Cull"))
+            {
+                material.SetFloat("_Cull", 0f);
+            }
+
             EditorUtility.SetDirty(material);
             return material;
         }

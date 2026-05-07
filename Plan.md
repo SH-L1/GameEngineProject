@@ -163,8 +163,8 @@ Boot → Playing → (Paused) → GameOver → (Restart)
 |------|------|--------|------|
 | **P1** | Player Hole MVP 골격 | `HoleBase`, `PlayerHole`, `Swallowable`, `GameSettings`, 기본 카메라 follow | 완료 |
 | **P2** | 흡수 판정 안정화 | 트리거 중복 방지, 콜라이더/렌더 bounds 기반 size·volume 계산, 비활성화/풀링 호환 | 완료 |
-| **P3** | 성장 공식 튜닝 | `growthCoefficient`, `swallowMargin`, score 가산 검증, 작은/중간/큰 오브젝트 테스트 프리셋 | 예정 |
-| **P4** | 카메라 성장 연출 | 반경 기반 줌 보간, 흡수 순간 줌 펄스, Cinemachine 전환 지점 정의 | 예정 |
+| **P3** | 성장 공식 튜닝 | `growthCoefficient`, radius gain clamp, score multiplier, 작은/중간/큰 오브젝트 테스트 프리셋 | 완료 |
+| **P4** | 카메라 성장 연출 | 반경 기반 줌 보간, 흡수 순간 줌아웃 펄스, 최소/최대 카메라 사이즈 제한 | 완료 |
 | **P5** | 팀 통합 인터페이스 정리 | AI가 상속할 `HoleBase` API 확정, UI가 구독할 `RadiusChanged`/`ScoreChanged` 이벤트 검증 | 예정 |
 | **P6** | Unity 씬 검증 | Player prefab 구성, Swallowable 샘플 배치, Play Mode 수동 테스트 체크리스트 완료 | 예정 |
 
@@ -219,6 +219,47 @@ P2 Unity 에디터 작업 체크리스트:
 - Hole과 Cube의 X/Z scale이 같을 때 Cube가 가장자리에서 물리 힘을 받고, 충분히 안쪽으로 들어오면 통과하는지 확인
 - 흡수된 오브젝트가 Hierarchy에서 비활성화되는지 확인
 - 같은 오브젝트가 한 번에 점수를 여러 번 주지 않는지 Console/Inspector로 확인
+
+P3 구현 내용:
+- `GameSettings`에 `baseGrowthRequired`, `growthRequirementMultiplier`, `radiusGainPerLevel`, `scoreMultiplier` 추가
+- `GameSettings.CalculateGrowthProgress`, `CalculateGrowthRequired`, `CalculateScoreGain`으로 성장 게이지/점수 계산을 한 곳에서 튜닝
+- `HoleBase.AddGrowth`가 즉시 반경을 키우지 않고 성장 게이지를 채우며, 게이지가 다 찼을 때만 단계적으로 반경 증가
+- `HoleProgressRing` 추가: Hole 가장자리 테두리와 외곽 성장 게이지 원 표시
+- `HoleDebugHUD` 추가: Play 중 현재 `Radius`, `Score`를 화면 좌상단에 표시
+- `Void Eater > Setup Phase 2 Test Scene` 메뉴가 Tiny/Small/Medium/Tall/Large 테스트 오브젝트를 생성하도록 확장
+
+P3 컴파일 확인:
+- `dotnet restore "My project/Assembly-CSharp-Editor.csproj"` 완료
+- `dotnet build "My project/Assembly-CSharp-Editor.csproj" --no-restore` 완료
+- 결과: 경고 0개, 오류 0개
+
+P3 Unity 에디터 작업 체크리스트:
+- 상단 메뉴 `Void Eater > Setup Core Test Scene` 다시 실행
+- Main Camera에 `HoleDebugHUD`가 붙고 `target`이 Player Hole인지 확인
+- `GameSettings`에서 `Base Growth Required`, `Growth Requirement Multiplier`, `Radius Gain Per Level`, `Maximum Radius`, `Score Multiplier` 값 확인
+- Tiny/Small Cube를 먼저 먹고 점수는 즉시 오르되, Radius는 성장 게이지가 다 찬 뒤에만 증가하는지 확인
+- Hole 가장자리의 외곽 게이지 링이 오브젝트를 먹을 때마다 차오르는지 확인
+- Medium/Tall/Large 오브젝트가 성장 정도에 따라 먹히는 시점이 달라지는지 확인
+- 성장이 너무 빠르면 `objectVolumeProgressWeight`, `objectScoreProgressWeight`, `radiusGainPerLevel`을 낮추거나 `baseGrowthRequired`를 올린다
+- 성장 체감이 너무 약하면 `objectVolumeProgressWeight`, `objectScoreProgressWeight`, `radiusGainPerLevel`을 조금 올린다
+
+P4 구현 내용:
+- `HoleCameraFollow`가 `HoleBase.Swallowed` 이벤트를 구독해 흡수 순간 짧은 줌아웃 펄스를 적용
+- 반경 기반 `OrthographicSize` 보간에 `minOrthographicSize`, `maxOrthographicSize` 제한 추가
+- `swallowPulseSize`, `swallowPulseDuration`으로 흡수 카메라 펄스 강도와 시간을 조절 가능
+- `Void Eater > Setup Core Test Scene` 메뉴가 P4 카메라 기본값을 자동 세팅
+
+P4 컴파일 확인:
+- `dotnet build "My project/Assembly-CSharp-Editor.csproj" --no-restore` 완료
+- 결과: 경고 0개, 오류 0개
+
+P4 Unity 에디터 작업 체크리스트:
+- 상단 메뉴 `Void Eater > Setup Core Test Scene` 다시 실행
+- Main Camera의 `HoleCameraFollow`에 새 필드가 보이는지 확인
+- Play 후 오브젝트를 먹을 때 카메라가 짧게 줌아웃했다가 돌아오는지 확인
+- Hole이 커질수록 카메라 시야가 천천히 넓어지는지 확인
+- 펄스가 과하면 `Swallow Pulse Size`를 낮추고, 약하면 조금 올린다
+- 전체 시야가 너무 넓거나 좁으면 `Min/Max Orthographic Size`, `Size Per Radius`를 조정한다
 
 ---
 

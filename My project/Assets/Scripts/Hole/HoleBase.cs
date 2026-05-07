@@ -2,7 +2,6 @@ using System;
 using UnityEngine;
 using VoidEater.Core;
 using VoidEater.Objects;
-using VoidEater.Utils;
 
 namespace VoidEater.Hole
 {
@@ -20,13 +19,22 @@ namespace VoidEater.Hole
         private SphereCollider trigger;
         private Rigidbody body;
         private int score;
+        private int level = 1;
+        private float growthProgress;
+        private float growthRequired;
 
         public event Action<float> RadiusChanged;
         public event Action<int> ScoreChanged;
+        public event Action<float> GrowthProgressChanged;
+        public event Action<int> LevelChanged;
         public event Action<Swallowable> Swallowed;
 
         public float Radius => GetWorldRadius();
         public int Score => score;
+        public int Level => level;
+        public float GrowthProgress => growthProgress;
+        public float GrowthRequired => growthRequired;
+        public float GrowthProgress01 => growthRequired > 0f ? Mathf.Clamp01(growthProgress / growthRequired) : 0f;
         protected Rigidbody Body => body;
 
         protected virtual void Awake()
@@ -34,7 +42,9 @@ namespace VoidEater.Hole
             CacheComponents();
             ConfigurePhysics();
             MigrateLegacyRadius();
+            RefreshGrowthRequirement();
             ApplyRadius(radius, true);
+            GrowthProgressChanged?.Invoke(GrowthProgress01);
         }
 
         protected virtual void OnValidate()
@@ -115,17 +125,54 @@ namespace VoidEater.Hole
 
         protected void AddGrowth(float objectVolume, int objectScore)
         {
-            float coefficient = settings != null ? settings.growthCoefficient : 0.35f;
-            float minimumObjectVolume = settings != null ? settings.minimumObjectVolume : 0.01f;
-            float minimumHoleArea = settings != null ? settings.minimumHoleArea : 0.25f;
-
-            float safeObjectVolume = Mathf.Max(minimumObjectVolume, objectVolume);
-            float safeHoleArea = Mathf.Max(minimumHoleArea, MathExt.DiskArea(Radius));
-            float radiusGain = coefficient * Mathf.Sqrt(safeObjectVolume / safeHoleArea);
-
-            ApplyRadius(radius + radiusGain, false);
-            score += Mathf.Max(0, objectScore);
+            int scoreGain = settings != null ? settings.CalculateScoreGain(objectScore) : Mathf.Max(0, objectScore);
+            score += scoreGain;
             ScoreChanged?.Invoke(score);
+
+            float progressGain = settings != null
+                ? settings.CalculateGrowthProgress(objectVolume, objectScore)
+                : Mathf.Sqrt(Mathf.Max(0f, objectVolume)) + Mathf.Max(0, objectScore);
+
+            AddGrowthProgress(progressGain);
+        }
+
+        private void AddGrowthProgress(float progressGain)
+        {
+            growthProgress += Mathf.Max(0f, progressGain);
+
+            while (growthRequired > 0f && growthProgress >= growthRequired && !IsAtMaximumRadius())
+            {
+                growthProgress -= growthRequired;
+                LevelUp();
+            }
+
+            if (IsAtMaximumRadius())
+            {
+                growthProgress = 0f;
+            }
+
+            GrowthProgressChanged?.Invoke(GrowthProgress01);
+        }
+
+        private void LevelUp()
+        {
+            level++;
+            float radiusGain = settings != null ? settings.radiusGainPerLevel : 0.25f;
+            float maxRadius = settings != null ? settings.maximumRadius : float.PositiveInfinity;
+            ApplyRadius(Mathf.Min(radius + radiusGain, maxRadius), false);
+            RefreshGrowthRequirement();
+            LevelChanged?.Invoke(level);
+        }
+
+        private bool IsAtMaximumRadius()
+        {
+            float maxRadius = settings != null ? settings.maximumRadius : float.PositiveInfinity;
+            return Radius >= maxRadius;
+        }
+
+        private void RefreshGrowthRequirement()
+        {
+            growthRequired = settings != null ? settings.CalculateGrowthRequired(level) : 35f;
         }
 
         private void CacheComponents()
