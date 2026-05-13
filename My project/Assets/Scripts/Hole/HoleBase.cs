@@ -74,7 +74,13 @@ namespace VoidEater.Hole
                 return;
             }
 
-            target.ApplyHoleInfluence(this, CanSwallow(target));
+            if (!CanSwallow(target))
+            {
+                target.ApplyHoleOcclusion(this);
+                return;
+            }
+
+            target.ApplyHoleInfluence(this, true);
         }
 
         public bool CanSwallow(Swallowable target)

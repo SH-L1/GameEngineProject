@@ -248,10 +248,12 @@ namespace VoidEater.Editor
             serializedSwallowable.FindProperty("inwardAcceleration").floatValue = 18f;
             serializedSwallowable.FindProperty("edgeDownAcceleration").floatValue = 34f;
             serializedSwallowable.FindProperty("tumbleTorque").floatValue = 18f;
-            serializedSwallowable.FindProperty("oversizedInfluenceMultiplier").floatValue = 0.25f;
-            serializedSwallowable.FindProperty("passThroughSizeFactor").floatValue = 0.95f;
             serializedSwallowable.FindProperty("consumeDepth").floatValue = 2.5f;
             serializedSwallowable.FindProperty("maxFallSpeed").floatValue = 9f;
+            serializedSwallowable.FindProperty("occlusionRevealAlpha").floatValue = 0.18f;
+            serializedSwallowable.FindProperty("occlusionOutlineColor").colorValue = Color.white;
+            serializedSwallowable.FindProperty("occlusionOutlineWidth").floatValue = 0.04f;
+            serializedSwallowable.FindProperty("occlusionMemory").floatValue = 0.08f;
             serializedSwallowable.ApplyModifiedProperties();
 
             Rigidbody body = EnsureComponent<Rigidbody>(cube);
