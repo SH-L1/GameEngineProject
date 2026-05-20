@@ -34,6 +34,7 @@ namespace VoidEater.Editor
             GameObject player = EnsurePlayerHole(settings, holeMaterial, progressMaterial);
             EnsureCamera(player.GetComponent<PlayerHole>());
             EnsureSampleSwallowables(swallowableMaterial);
+            AudioToggleSceneBuilder.SetupBgmToggleButton();
 
             Selection.activeGameObject = player;
             EditorGUIUtility.PingObject(player);
@@ -192,6 +193,7 @@ namespace VoidEater.Editor
             camera.orthographicSize = 12f;
             camera.transform.position = new Vector3(0f, 18f, -14f);
             camera.transform.LookAt(target.transform.position);
+            EnsureComponent<AudioListener>(camera.gameObject);
 
             HoleCameraFollow follow = EnsureComponent<HoleCameraFollow>(camera.gameObject);
             SerializedObject serializedFollow = new SerializedObject(follow);
