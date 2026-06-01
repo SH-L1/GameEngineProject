@@ -6,17 +6,17 @@ namespace VoidEater.Core
     public sealed class GameSettings : ScriptableObject
     {
         [Header("Hole Growth")]
+        [Min(1)]
+        public int baseGrowthUnitsRequired = 5;
+
+        [Min(0)]
+        public int growthUnitsRequiredIncrease = 2;
+
         [Min(0.001f)]
-        public float baseGrowthRequired = 35f;
+        public float smallObjectRadiusLimit = 0.55f;
 
-        [Min(1f)]
-        public float growthRequirementMultiplier = 1.22f;
-
-        [Min(0f)]
-        public float objectVolumeProgressWeight = 8f;
-
-        [Min(0f)]
-        public float objectScoreProgressWeight = 1f;
+        [Min(0.001f)]
+        public float mediumObjectRadiusLimit = 1.25f;
 
         [Min(0.001f)]
         public float radiusGainPerLevel = 0.25f;
@@ -43,17 +43,25 @@ namespace VoidEater.Core
         [Min(0f)]
         public float passThroughClearance = 0.05f;
 
-        public float CalculateGrowthProgress(float objectVolume, int baseScore)
+        public int CalculateGrowthUnits(float requiredPassThroughRadius)
         {
-            float volumeProgress = Mathf.Sqrt(Mathf.Max(0f, objectVolume)) * objectVolumeProgressWeight;
-            float scoreProgress = Mathf.Max(0, baseScore) * objectScoreProgressWeight;
-            return volumeProgress + scoreProgress;
+            if (requiredPassThroughRadius <= smallObjectRadiusLimit)
+            {
+                return 1;
+            }
+
+            if (requiredPassThroughRadius <= mediumObjectRadiusLimit)
+            {
+                return 2;
+            }
+
+            return 3;
         }
 
         public float CalculateGrowthRequired(int level)
         {
             int safeLevel = Mathf.Max(1, level);
-            return baseGrowthRequired * Mathf.Pow(growthRequirementMultiplier, safeLevel - 1);
+            return baseGrowthUnitsRequired + growthUnitsRequiredIncrease * (safeLevel - 1);
         }
 
         public int CalculateScoreGain(int baseScore)

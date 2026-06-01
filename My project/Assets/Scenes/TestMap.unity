@@ -272811,7 +272811,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3664851602014004969, guid: 9e0377137b56c4148aa17720e47c34a4, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.6
+      value: 0.2
       objectReference: {fileID: 0}
     - target: {fileID: 3664851602014004969, guid: 9e0377137b56c4148aa17720e47c34a4, type: 3}
       propertyPath: m_LocalPosition.z
@@ -272851,7 +272851,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5106899866273336915, guid: 9e0377137b56c4148aa17720e47c34a4, type: 3}
       propertyPath: moveSpeed
-      value: 3
+      value: 18
       objectReference: {fileID: 0}
     - target: {fileID: 5106899866273336915, guid: 9e0377137b56c4148aa17720e47c34a4, type: 3}
       propertyPath: mapHalfExtents.x
