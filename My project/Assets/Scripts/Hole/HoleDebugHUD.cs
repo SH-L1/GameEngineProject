@@ -1,4 +1,8 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 using VoidEater.Core;
 using VoidEater.Objects;
 using VoidEater.Player;
@@ -25,6 +29,19 @@ namespace VoidEater.Hole
         private void Awake()
         {
             ResolveReferences();
+        }
+
+        private void Update()
+        {
+            if (gameController == null)
+            {
+                ResolveReferences();
+            }
+
+            if (gameController != null && gameController.IsFinished && WasRestartPressed())
+            {
+                ReloadActiveScene();
+            }
         }
 
         public void SetTarget(HoleBase nextTarget)
@@ -124,6 +141,53 @@ namespace VoidEater.Hole
 
             Rect rect = new Rect(0f, Screen.height * 0.36f, Screen.width, Screen.height * 0.28f);
             GUI.Label(rect, "TIME UP\nFINAL SCORE " + gameController.FinalScore, endStyle);
+        }
+
+        private static bool WasRestartPressed()
+        {
+#if ENABLE_INPUT_SYSTEM
+            Mouse mouse = Mouse.current;
+            if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+            {
+                return true;
+            }
+
+            Touchscreen touchscreen = Touchscreen.current;
+            if (touchscreen != null && touchscreen.primaryTouch.press.wasPressedThisFrame)
+            {
+                return true;
+            }
+#endif
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+            if (Input.GetMouseButtonDown(0))
+            {
+                return true;
+            }
+
+            for (int i = 0; i < Input.touchCount; i++)
+            {
+                if (Input.GetTouch(i).phase == TouchPhase.Began)
+                {
+                    return true;
+                }
+            }
+#endif
+
+            return false;
+        }
+
+        private static void ReloadActiveScene()
+        {
+            Time.timeScale = 1f;
+            Scene activeScene = SceneManager.GetActiveScene();
+            if (activeScene.buildIndex >= 0)
+            {
+                SceneManager.LoadScene(activeScene.buildIndex);
+                return;
+            }
+
+            SceneManager.LoadScene(activeScene.name);
         }
 
         private void EnsureStyle()
