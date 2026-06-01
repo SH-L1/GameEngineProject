@@ -11,10 +11,14 @@ namespace VoidEater.Editor
     public static class PhaseTestSceneBuilder
     {
         private const float InitialPlayerHoleRadius = 0.5f;
+        private const float HoleSurfaceHeight = 0.2f;
+        private const float HoleVisualHeightOffset = 0.65f;
         private const string SettingsPath = "Assets/GameSettings.asset";
         private const string MaterialsFolder = "Assets/Materials";
         private const string HoleMaterialPath = MaterialsFolder + "/M_HoleVisual.mat";
+        private const string EnemyHoleMaterialPath = MaterialsFolder + "/M_EnemyHoleVisual.mat";
         private const string HoleProgressMaterialPath = MaterialsFolder + "/M_HoleProgress.mat";
+        private const string EnemyIndicatorMaterialPath = MaterialsFolder + "/M_EnemyIndicator.mat";
         private const string GroundMaterialPath = MaterialsFolder + "/M_TestGround.mat";
         private const string SwallowableMaterialPath = MaterialsFolder + "/M_TestSwallowable.mat";
 
@@ -26,13 +30,20 @@ namespace VoidEater.Editor
 
             GameSettings settings = EnsureGameSettings();
             Material holeMaterial = EnsureMaterial(HoleMaterialPath, new Color(0.005f, 0.005f, 0.008f));
+            Material enemyHoleMaterial = EnsureMaterial(EnemyHoleMaterialPath, new Color(0.32f, 0.02f, 0.04f));
             Material progressMaterial = EnsureLineMaterial(HoleProgressMaterialPath, new Color(0.3f, 0.95f, 1f));
+            Material enemyIndicatorMaterial = EnsureMaterial(EnemyIndicatorMaterialPath, new Color(1f, 0.15f, 0.05f));
             Material groundMaterial = EnsureMaterial(GroundMaterialPath, new Color(0.2f, 0.24f, 0.22f));
             Material swallowableMaterial = EnsureMaterial(SwallowableMaterialPath, new Color(0.85f, 0.68f, 0.38f));
 
             GameObject ground = EnsureGround(groundMaterial);
             GameObject player = EnsurePlayerHole(settings, holeMaterial, progressMaterial);
-            EnsureCamera(player.GetComponent<PlayerHole>());
+            PlayerHole playerHole = player.GetComponent<PlayerHole>();
+            HoleGameController controller = EnsureGameController(playerHole);
+            EnsureCamera(playerHole, controller);
+            EnsureFeedback(playerHole);
+            EnsureEnemyIndicator(playerHole, enemyIndicatorMaterial);
+            EnsureEnemyHoles(settings, enemyHoleMaterial, progressMaterial, controller);
             EnsureSampleSwallowables(swallowableMaterial);
             AudioToggleSceneBuilder.SetupBgmToggleButton();
 
@@ -54,10 +65,10 @@ namespace VoidEater.Editor
             settings.requireFullContainment = false;
             settings.swallowTolerance = 0.1f;
             settings.passThroughClearance = 0.05f;
-            settings.baseGrowthRequired = 35f;
-            settings.growthRequirementMultiplier = 1.22f;
-            settings.objectVolumeProgressWeight = 8f;
-            settings.objectScoreProgressWeight = 1f;
+            settings.baseGrowthUnitsRequired = 5;
+            settings.growthUnitsRequiredIncrease = 2;
+            settings.smallObjectRadiusLimit = 0.55f;
+            settings.mediumObjectRadiusLimit = 1.25f;
             settings.radiusGainPerLevel = 0.25f;
             settings.maximumRadius = 12f;
             settings.scoreMultiplier = 1f;
@@ -93,8 +104,9 @@ namespace VoidEater.Editor
                 Undo.RegisterCreatedObjectUndo(player, "Create Player Hole");
             }
 
-            player.transform.position = new Vector3(0f, 0.05f, 0f);
+            player.transform.position = new Vector3(0f, HoleSurfaceHeight, 0f);
             player.transform.rotation = Quaternion.identity;
+            player.transform.localScale = Vector3.one;
 
             Rigidbody body = EnsureComponent<Rigidbody>(player);
             body.isKinematic = true;
@@ -114,7 +126,7 @@ namespace VoidEater.Editor
                 visualRoot.SetParent(player.transform);
             }
 
-            visualRoot.localPosition = new Vector3(0f, 0.02f, 0f);
+            visualRoot.localPosition = new Vector3(0f, HoleVisualHeightOffset, 0f);
             visualRoot.localRotation = Quaternion.identity;
             visualRoot.localScale = Vector3.one;
 
@@ -137,7 +149,9 @@ namespace VoidEater.Editor
             SerializedObject serializedPlayer = new SerializedObject(playerHole);
             serializedPlayer.FindProperty("settings").objectReferenceValue = settings;
             serializedPlayer.FindProperty("visualRoot").objectReferenceValue = visualRoot;
+            serializedPlayer.FindProperty("visualHeightOffset").floatValue = HoleVisualHeightOffset;
             serializedPlayer.FindProperty("radius").floatValue = InitialPlayerHoleRadius;
+            serializedPlayer.FindProperty("moveSpeed").floatValue = 18f;
             serializedPlayer.ApplyModifiedProperties();
 
             EnsureProgressRing(player.transform, playerHole, progressMaterial);
@@ -145,9 +159,148 @@ namespace VoidEater.Editor
             return player;
         }
 
+        private static void EnsureEnemyHoles(
+            GameSettings settings,
+            Material holeMaterial,
+            Material progressMaterial,
+            HoleGameController controller)
+        {
+            EnsureEnemyHole("Enemy Hole 01", new Vector3(-8f, HoleSurfaceHeight, -5f), 0.5f, settings, holeMaterial, progressMaterial, controller);
+            EnsureEnemyHole("Enemy Hole 02", new Vector3(8f, HoleSurfaceHeight, 5f), 0.75f, settings, holeMaterial, progressMaterial, controller);
+        }
+
+        private static void EnsureEnemyHole(
+            string name,
+            Vector3 position,
+            float initialRadius,
+            GameSettings settings,
+            Material holeMaterial,
+            Material progressMaterial,
+            HoleGameController controller)
+        {
+            GameObject enemy = GameObject.Find(name);
+            if (enemy == null)
+            {
+                enemy = new GameObject(name);
+                Undo.RegisterCreatedObjectUndo(enemy, "Create " + name);
+            }
+
+            enemy.transform.position = position;
+            enemy.transform.rotation = Quaternion.identity;
+            enemy.transform.localScale = Vector3.one;
+
+            Rigidbody body = EnsureComponent<Rigidbody>(enemy);
+            body.isKinematic = true;
+            body.useGravity = false;
+
+            SphereCollider trigger = EnsureComponent<SphereCollider>(enemy);
+            trigger.isTrigger = true;
+            trigger.radius = initialRadius;
+
+            AIHole aiHole = EnsureComponent<AIHole>(enemy);
+            Transform visualRoot = EnsureHoleVisual(enemy.transform, holeMaterial);
+
+            SerializedObject serializedAi = new SerializedObject(aiHole);
+            serializedAi.FindProperty("settings").objectReferenceValue = settings;
+            serializedAi.FindProperty("visualRoot").objectReferenceValue = visualRoot;
+            serializedAi.FindProperty("visualHeightOffset").floatValue = HoleVisualHeightOffset;
+            serializedAi.FindProperty("radius").floatValue = initialRadius;
+            serializedAi.FindProperty("moveSpeed").floatValue = 13.5f;
+            serializedAi.FindProperty("mapHalfExtents").vector2Value = new Vector2(45f, 45f);
+            serializedAi.FindProperty("detectionRadius").floatValue = 12f;
+            serializedAi.FindProperty("decisionInterval").floatValue = 0.35f;
+            serializedAi.FindProperty("wanderTargetDistance").floatValue = 8f;
+            serializedAi.FindProperty("gameController").objectReferenceValue = controller;
+            serializedAi.ApplyModifiedProperties();
+            aiHole.SetGameController(controller);
+
+            EnsureProgressRing(enemy.transform, aiHole, progressMaterial);
+            EnsureFeedback(aiHole);
+            EditorUtility.SetDirty(enemy);
+        }
+
+        private static Transform EnsureHoleVisual(Transform owner, Material holeMaterial)
+        {
+            Transform visualRoot = owner.Find("visualRoot");
+            if (visualRoot == null)
+            {
+                visualRoot = new GameObject("visualRoot").transform;
+                Undo.RegisterCreatedObjectUndo(visualRoot.gameObject, "Create Hole Visual Root");
+                visualRoot.SetParent(owner);
+            }
+
+            visualRoot.localPosition = new Vector3(0f, HoleVisualHeightOffset, 0f);
+            visualRoot.localRotation = Quaternion.identity;
+            visualRoot.localScale = Vector3.one;
+
+            Transform holeVisual = visualRoot.Find("HoleVisual");
+            if (holeVisual == null)
+            {
+                GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                Undo.RegisterCreatedObjectUndo(visual, "Create Hole Visual");
+                visual.name = "HoleVisual";
+                holeVisual = visual.transform;
+                holeVisual.SetParent(visualRoot);
+            }
+
+            holeVisual.localPosition = Vector3.zero;
+            holeVisual.localRotation = Quaternion.identity;
+            holeVisual.localScale = new Vector3(1f, 0.01f, 1f);
+            Collider collider = holeVisual.GetComponent<Collider>();
+            if (collider != null)
+            {
+                Object.DestroyImmediate(collider);
+            }
+
+            AssignMaterial(holeVisual.gameObject, holeMaterial);
+            return visualRoot;
+        }
+
+        private static HoleGameController EnsureGameController(PlayerHole player)
+        {
+            GameObject gameObject = GameObject.Find("Game Controller");
+            if (gameObject == null)
+            {
+                gameObject = new GameObject("Game Controller");
+                Undo.RegisterCreatedObjectUndo(gameObject, "Create Game Controller");
+            }
+
+            HoleGameController controller = EnsureComponent<HoleGameController>(gameObject);
+            SerializedObject serializedController = new SerializedObject(controller);
+            serializedController.FindProperty("player").objectReferenceValue = player;
+            serializedController.FindProperty("roundDuration").floatValue = 90f;
+            serializedController.FindProperty("startOnAwake").boolValue = false;
+            serializedController.ApplyModifiedProperties();
+            controller.SetPlayer(player);
+
+            SerializedObject serializedPlayer = new SerializedObject(player);
+            serializedPlayer.FindProperty("gameController").objectReferenceValue = controller;
+            serializedPlayer.ApplyModifiedProperties();
+            player.SetGameController(controller);
+
+            EditorUtility.SetDirty(controller);
+            return controller;
+        }
+
+        private static void EnsureEnemyIndicator(PlayerHole player, Material indicatorMaterial)
+        {
+            EnemyDirectionIndicator indicator = EnsureComponent<EnemyDirectionIndicator>(player.gameObject);
+            SerializedObject serializedIndicator = new SerializedObject(indicator);
+            serializedIndicator.FindProperty("target").objectReferenceValue = player;
+            serializedIndicator.FindProperty("indicatorMaterial").objectReferenceValue = indicatorMaterial;
+            serializedIndicator.FindProperty("detectionRadius").floatValue = 16f;
+            serializedIndicator.FindProperty("radiusOffset").floatValue = 1.1f;
+            serializedIndicator.FindProperty("heightOffset").floatValue = 1.4f;
+            serializedIndicator.FindProperty("indicatorLength").floatValue = 0.9f;
+            serializedIndicator.FindProperty("indicatorWidth").floatValue = 0.7f;
+            serializedIndicator.ApplyModifiedProperties();
+            indicator.SetTarget(player);
+            EditorUtility.SetDirty(indicator);
+        }
+
         private static void EnsureProgressRing(
             Transform player,
-            PlayerHole playerHole,
+            HoleBase playerHole,
             Material progressMaterial)
         {
             Transform rings = player.Find("Rings");
@@ -177,7 +330,7 @@ namespace VoidEater.Editor
             EditorUtility.SetDirty(progressRing);
         }
 
-        private static void EnsureCamera(PlayerHole target)
+        private static void EnsureCamera(PlayerHole target, HoleGameController controller)
         {
             Camera camera = Camera.main;
             if (camera == null)
@@ -212,19 +365,85 @@ namespace VoidEater.Editor
             HoleDebugHUD debugHud = EnsureComponent<HoleDebugHUD>(camera.gameObject);
             SerializedObject serializedHud = new SerializedObject(debugHud);
             serializedHud.FindProperty("target").objectReferenceValue = target;
+            serializedHud.FindProperty("gameController").objectReferenceValue = controller;
             serializedHud.FindProperty("fontSize").intValue = 82;
             serializedHud.FindProperty("topPositionRatio").floatValue = 0.99f;
             serializedHud.FindProperty("widthRatio").floatValue = 0.9f;
+            serializedHud.FindProperty("showSwallowDebug").boolValue = false;
+            serializedHud.FindProperty("debugFontSize").intValue = 22;
             serializedHud.ApplyModifiedProperties();
+            debugHud.SetTarget(target);
+            debugHud.SetGameController(controller);
+        }
+
+        private static void EnsureFeedback(HoleBase target)
+        {
+            HoleFeedback feedback = EnsureComponent<HoleFeedback>(target.gameObject);
+            AudioSource source = EnsureComponent<AudioSource>(target.gameObject);
+            source.playOnAwake = false;
+            source.loop = false;
+            source.spatialBlend = 0f;
+
+            ParticleSystem swallowParticles = EnsureParticleSystem(target.transform, "Swallow Particles", new Color(0.25f, 0.9f, 1f, 1f), 0.35f);
+            ParticleSystem levelUpParticles = EnsureParticleSystem(target.transform, "Level Up Particles", new Color(1f, 0.9f, 0.25f, 1f), 0.75f);
+
+            SerializedObject serializedFeedback = new SerializedObject(feedback);
+            serializedFeedback.FindProperty("target").objectReferenceValue = target;
+            serializedFeedback.FindProperty("audioSource").objectReferenceValue = source;
+            serializedFeedback.FindProperty("swallowParticles").objectReferenceValue = swallowParticles;
+            serializedFeedback.FindProperty("levelUpParticles").objectReferenceValue = levelUpParticles;
+            serializedFeedback.FindProperty("swallowVolume").floatValue = 0.55f;
+            serializedFeedback.FindProperty("levelUpVolume").floatValue = 0.75f;
+            serializedFeedback.FindProperty("visualPulseScale").floatValue = 0.12f;
+            serializedFeedback.FindProperty("visualPulseDuration").floatValue = 0.16f;
+            serializedFeedback.ApplyModifiedProperties();
+            feedback.SetTarget(target);
+        }
+
+        private static ParticleSystem EnsureParticleSystem(Transform parent, string name, Color color, float startSize)
+        {
+            Transform existing = parent.Find(name);
+            GameObject particleObject = existing != null ? existing.gameObject : null;
+            if (particleObject == null)
+            {
+                particleObject = new GameObject(name);
+                Undo.RegisterCreatedObjectUndo(particleObject, "Create " + name);
+                particleObject.transform.SetParent(parent, false);
+            }
+
+            particleObject.transform.localPosition = new Vector3(0f, 0.15f, 0f);
+            ParticleSystem particles = EnsureComponent<ParticleSystem>(particleObject);
+            ParticleSystem.MainModule main = particles.main;
+            main.startColor = color;
+            main.startLifetime = 0.35f;
+            main.startSpeed = 2.4f;
+            main.startSize = startSize;
+            main.maxParticles = 80;
+            main.loop = false;
+            main.playOnAwake = false;
+
+            ParticleSystem.EmissionModule emission = particles.emission;
+            emission.enabled = true;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 28) });
+
+            ParticleSystem.ShapeModule shape = particles.shape;
+            shape.enabled = true;
+            shape.shapeType = ParticleSystemShapeType.Circle;
+            shape.radius = 0.6f;
+
+            return particles;
         }
 
         private static void EnsureSampleSwallowables(Material material)
         {
-            CreateSampleCube("Sample Tiny Cube", new Vector3(2.5f, 0.15f, -1.5f), Vector3.one * 0.3f, 5, material);
-            CreateSampleCube("Sample Small Cube", new Vector3(3.25f, 0.25f, 0f), Vector3.one * 0.5f, 10, material);
-            CreateSampleCube("Sample Medium Cube", new Vector3(5f, 0.5f, 1.75f), Vector3.one, 25, material);
-            CreateSampleCube("Sample Tall Block", new Vector3(6.5f, 1.5f, -1.75f), new Vector3(0.8f, 3f, 0.8f), 45, material);
-            CreateSampleCube("Sample Large Cube", new Vector3(8.25f, 1f, 0f), Vector3.one * 2f, 75, material);
+            CreateSampleCube("Starter Cube 01", new Vector3(2.1f, 0.15f, -1.4f), Vector3.one * 0.3f, 5, material);
+            CreateSampleCube("Starter Cube 02", new Vector3(2.7f, 0.2f, -0.4f), Vector3.one * 0.4f, 8, material);
+            CreateSampleCube("Starter Cube 03", new Vector3(3.25f, 0.25f, 0.65f), Vector3.one * 0.5f, 10, material);
+            CreateSampleCube("Mid Cube 01", new Vector3(5f, 0.5f, 1.75f), Vector3.one, 25, material);
+            CreateSampleCube("Mid Tall Block", new Vector3(6.5f, 1.5f, -1.75f), new Vector3(0.8f, 3f, 0.8f), 45, material);
+            CreateSampleCube("Late Large Cube", new Vector3(8.25f, 1f, 0f), Vector3.one * 2f, 75, material);
+            CreateSampleCube("Late Wide Block", new Vector3(10.75f, 0.6f, 2.5f), new Vector3(2.4f, 1.2f, 1.2f), 90, material);
         }
 
         private static void CreateSampleCube(string name, Vector3 position, Vector3 scale, int score, Material material)

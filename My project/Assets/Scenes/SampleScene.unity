@@ -750,7 +750,7 @@ Transform:
   m_GameObject: {fileID: 1033506068}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.02, z: 0}
+  m_LocalPosition: {x: 0, y: 0.65, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -904,7 +904,8 @@ MonoBehaviour:
   settings: {fileID: 11400000, guid: 78d45d100ae62cf4782a81b30af9af81, type: 2}
   radius: 0.5
   visualRoot: {fileID: 1033506069}
-  moveSpeed: 6
+  visualHeightOffset: 0.65
+  moveSpeed: 18
   mapHalfExtents: {x: 45, y: 45}
 --- !u!135 &1315077196
 SphereCollider:
@@ -963,8 +964,8 @@ Transform:
   m_GameObject: {fileID: 1315077194}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.05, z: 0}
-  m_LocalScale: {x: 2, y: 1e-17, z: 2}
+  m_LocalPosition: {x: 0, y: 0.2, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1033506069}

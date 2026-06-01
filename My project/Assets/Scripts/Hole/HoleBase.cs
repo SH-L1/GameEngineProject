@@ -15,6 +15,7 @@ namespace VoidEater.Hole
         [SerializeField] private GameSettings settings;
         [SerializeField, Min(0.1f)] private float radius = DefaultInitialRadius;
         [SerializeField] private Transform visualRoot;
+        [SerializeField, Min(0f)] private float visualHeightOffset = 0.65f;
 
         private SphereCollider trigger;
         private Rigidbody body;
@@ -22,6 +23,7 @@ namespace VoidEater.Hole
         private int level = 1;
         private float growthProgress;
         private float growthRequired;
+        private Swallowable debugCandidate;
 
         public event Action<float> RadiusChanged;
         public event Action<int> ScoreChanged;
@@ -35,6 +37,7 @@ namespace VoidEater.Hole
         public float GrowthProgress => growthProgress;
         public float GrowthRequired => growthRequired;
         public float GrowthProgress01 => growthRequired > 0f ? Mathf.Clamp01(growthProgress / growthRequired) : 0f;
+        public Swallowable DebugCandidate => debugCandidate;
         protected Rigidbody Body => body;
 
         protected virtual void Awake()
@@ -44,6 +47,7 @@ namespace VoidEater.Hole
             MigrateLegacyRadius();
             RefreshGrowthRequirement();
             ApplyRadius(radius, true);
+            EnsureFeedback();
             GrowthProgressChanged?.Invoke(GrowthProgress01);
         }
 
@@ -74,6 +78,7 @@ namespace VoidEater.Hole
                 return;
             }
 
+            debugCandidate = target;
             if (!CanSwallow(target))
             {
                 target.ApplyHoleOcclusion(this);
@@ -127,19 +132,25 @@ namespace VoidEater.Hole
                 return;
             }
 
-            AddGrowth(target.Volume, target.Score);
+            AddGrowth(target);
             Swallowed?.Invoke(target);
         }
 
-        protected void AddGrowth(float objectVolume, int objectScore)
+        protected void AddGrowth(Swallowable target)
         {
+            if (target == null)
+            {
+                return;
+            }
+
+            int objectScore = target.Score;
             int scoreGain = settings != null ? settings.CalculateScoreGain(objectScore) : Mathf.Max(0, objectScore);
             score += scoreGain;
             ScoreChanged?.Invoke(score);
 
             float progressGain = settings != null
-                ? settings.CalculateGrowthProgress(objectVolume, objectScore)
-                : Mathf.Sqrt(Mathf.Max(0f, objectVolume)) + Mathf.Max(0, objectScore);
+                ? settings.CalculateGrowthUnits(target.RequiredPassThroughRadius)
+                : 1f;
 
             AddGrowthProgress(progressGain);
         }
@@ -240,6 +251,18 @@ namespace VoidEater.Hole
             }
 
             visualRoot.localScale = new Vector3(radius * 2f, visualRoot.localScale.y, radius * 2f);
+            visualRoot.localPosition = new Vector3(visualRoot.localPosition.x, visualHeightOffset, visualRoot.localPosition.z);
+        }
+
+        private void EnsureFeedback()
+        {
+            HoleFeedback feedback = GetComponent<HoleFeedback>();
+            if (feedback == null)
+            {
+                feedback = gameObject.AddComponent<HoleFeedback>();
+            }
+
+            feedback.SetTarget(this);
         }
     }
 }

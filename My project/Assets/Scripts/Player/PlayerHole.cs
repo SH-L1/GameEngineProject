@@ -2,14 +2,16 @@ using UnityEngine;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
+using VoidEater.Core;
 using VoidEater.Hole;
 
 namespace VoidEater.Player
 {
     public sealed class PlayerHole : HoleBase
     {
-        [SerializeField, Min(0f)] private float moveSpeed = 6f;
+        [SerializeField, Min(0f)] private float moveSpeed = 18f;
         [SerializeField] private Vector2 mapHalfExtents = new Vector2(45f, 45f);
+        [SerializeField] private HoleGameController gameController;
 
         private Vector2 moveInput;
 
@@ -18,8 +20,19 @@ namespace VoidEater.Player
             moveInput = Vector2.ClampMagnitude(input, 1f);
         }
 
+        public void SetGameController(HoleGameController controller)
+        {
+            gameController = controller;
+        }
+
         private void Update()
         {
+            if (gameController != null && !gameController.IsRunning)
+            {
+                SetMoveInput(Vector2.zero);
+                return;
+            }
+
             SetMoveInput(ReadKeyboardInput());
         }
 
