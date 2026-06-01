@@ -273347,11 +273347,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8983964290514455050, guid: 9e0377137b56c4148aa17720e47c34a4, type: 3}
       propertyPath: m_Positions.Array.data[0].x
-      value: 2.08
+      value: 8.08
       objectReference: {fileID: 0}
     - target: {fileID: 8983964290514455050, guid: 9e0377137b56c4148aa17720e47c34a4, type: 3}
       propertyPath: m_Positions.Array.data[1].x
-      value: 2.08
+      value: 8.08
       objectReference: {fileID: 0}
     - target: {fileID: 9138993225817665398, guid: 9e0377137b56c4148aa17720e47c34a4, type: 3}
       propertyPath: m_Radius
